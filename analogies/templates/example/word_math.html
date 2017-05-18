@@ -1,0 +1,115 @@
+{% extends 'example/_base.html' %}
+
+{% block content %}
+
+  <div>
+    <table>
+      <tr>
+
+        <th>
+          <label for="pos">Words to 'add'</label>
+        </th>
+        <th>
+          <input type="text" id="pos" placeholder="comma separated words to 'add'" value="king, woman"/>
+        </th>
+      </tr>
+      <tr>
+
+        <th>
+          <label for="neg">Words to 'subtract'</label>
+        </th>
+        <th>
+          <input type="text" id="neg" placeholder="comma separated words to 'subtract'" value="man"/>
+        </th>
+      </tr>
+      <tr>
+        <th>
+          <p>Result</p>
+        </th>
+        <th>
+          <p id="output">(hit 'Calculate' for the answer)</p>
+        </th>
+      </tr>
+    </table>
+
+    <button id="submit">Calculate</button>
+
+  </div>
+  
+
+{% endblock content %}
+
+{% block script %}
+  <script>
+   var socket = new WebSocket('ws://' + window.location.host + '/users/');
+    socket.onopen = function open() {
+      console.log('WebSockets connection created.');
+    };
+
+    socket.onmessage = function(message) {
+    	console.log(message.data)
+
+    	var messageObject = JSON.parse(message.data)
+
+    	console.log(messageObject)
+
+    	if (messageObject.error) {
+    	    alert("Oh no! " + messageObject.error)
+    	} else if (messageObject.result){
+            var results = formatResults(messageObject.positive_word_list, messageObject.negative_word_list, messageObject.result)
+
+            console.log(results)
+            $('output').innerHTML = results
+    	}
+    }
+
+    if (socket.readyState == WebSocket.OPEN) {
+      socket.onopen();
+      console.log('readyfreddy')
+    }
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function formatResults(positiveWordList, negativeWordList, result) {
+
+
+        return positiveWordList.join(" + ")
+        + ((negativeWordList.length || "") && (" - (" + negativeWordList.join(" + ") + ")"))
+        + " = "
+        + result
+    }
+
+    var submit = $('submit')
+
+    function cleanList(list) {
+      var cleanedList = list.map(function(word) {
+        return word.trim().toLowerCase().replace(/\ /gi, "_")
+
+      })
+
+      if (cleanedList.length == 1 && cleanedList[0] == "") {
+        //blank string, which occurs when textbox is left empty
+        return []
+      }
+
+      return cleanedList
+    }
+
+    submit.onclick = function() {
+      var positiveWordList = $('pos').value.split(",")
+      var negativeWordList = $('neg').value.split(",")
+
+      var message = {
+        "positive_word_list": cleanList(positiveWordList),
+        "negative_word_list": cleanList(negativeWordList)
+      }
+
+      console.log("sending", message)
+
+      socket.send(JSON.stringify(message))
+
+    }
+  </script>
+{% endblock script %}
